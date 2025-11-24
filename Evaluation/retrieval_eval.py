@@ -20,7 +20,7 @@ async def evaluate_dataset(
     dataset: Dataset,
     llm: Any,
     embeddings: Embeddings,
-    max_concurrent: int = 1,
+    max_concurrent: int = 10,
     detailed_output: bool = False
 ) -> Dict[str, Any]:
     """Evaluate context relevance and recall for a dataset"""
@@ -178,7 +178,7 @@ async def main(args: argparse.Namespace):
     # Load evaluation data
     print(f"Loading evaluation data from {args.data_file}...")
     with open(args.data_file, 'r') as f:
-        file_data = json.load(f)  # List of question items
+        file_data = [json.loads(line) for line in f]   # List of question items
     
     # Group data by question type
     grouped_data = {}
@@ -202,7 +202,15 @@ async def main(args: argparse.Namespace):
         ids = [item['id'] for item in group_items]
         questions = [item['question'] for item in group_items]
         evidences = [item['evidence'] for item in group_items]
-        contexts = [item['context'] for item in group_items]
+        raw_contexts = [item['context'] for item in group_items]
+        # Build per-sample list of top contexts (list[list[str]]) to align with other fields
+        contexts = [
+            [
+                f"Title:\n{ctx['title']}\n\nContent:\n{ctx['content']}\n"
+                for ctx in sample
+            ]
+            for sample in raw_contexts
+        ]
         
         # Create dataset
         data = {

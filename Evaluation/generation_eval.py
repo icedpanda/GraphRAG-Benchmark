@@ -20,7 +20,7 @@ async def evaluate_dataset(
     metrics: List[str],
     llm: Any,
     embeddings: Embeddings,
-    max_concurrent: int = 3,  # Limit concurrent evaluations
+    max_concurrent: int = 10,  # Limit concurrent evaluations
     detailed_output: bool = False
 ) -> Dict[str, Any]:
     """Evaluate the metric scores on the entire dataset."""
@@ -192,7 +192,7 @@ async def main(args: argparse.Namespace):
     # Load evaluation data
     print(f"Loading evaluation data from {args.data_file}...")
     with open(args.data_file, 'r') as f:
-        file_data = json.load(f)  # Now a list of question items
+        file_data = [json.loads(line) for line in f]  # Now a list of question items
     
     # Define the evaluation metrics for each question type
     metric_config = {
@@ -229,7 +229,15 @@ async def main(args: argparse.Namespace):
         questions = [item['question'] for item in group_items]
         ground_truths = [item['ground_truth'] for item in group_items]
         answers = [item['generated_answer'] for item in group_items]
-        contexts = [item['context'] for item in group_items]
+        raw_contexts = [item['context'] for item in group_items]
+        # Build per-sample list of top contexts (list[list[str]]) to align with other fields
+        contexts = [
+            [
+                f"Title:\n{ctx['title']}\n\nContent:\n{ctx['content']}\n"
+                for ctx in sample
+            ]
+            for sample in raw_contexts
+        ]
         
         # Create dataset
         data = {
